@@ -6,6 +6,8 @@
   <br>nftables-rs
 </h1>
 
+BREAKING
+
 <h3 align='center'> Automate modern Linux firewalls with nftables through its declarative and imperative JSON API in Rust. </h3>
 
 <!-- primary badges -------------------------------------->
