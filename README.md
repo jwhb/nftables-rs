@@ -44,7 +44,7 @@ By abstracting the underlying JSON API, nftables-rs facilitates the creation, ma
 
 ```toml
 [dependencies]
-nftables = "0.3.0"
+nftables = "0.5"
 ```
 
 Linux nftables v0.9.3 or newer is required at runtime: `nft --version`
@@ -138,7 +138,9 @@ dual licensed as above, without any additional terms or conditions.
 
 This project is currently maintained by the following developers:
 
-|       Name       |      Email Address     |                GitHub Username               |
-|:----------------:|:----------------------:|:--------------------------------------------:|
-| Jasper Wiegratz  | wiegratz@uni-bremen.de |       [@jwhb](https://github.com/jwhb)       |
+|       Name       |      Email Address       |                GitHub Username               |
+|:----------------:|:------------------------:|:--------------------------------------------:|
+| Jasper Wiegratz  | wiegratz@uni-bremen.de   |       [@jwhb](https://github.com/jwhb)       |
+| Jan Romann       | jan.romann@uni-bremen.de |      [@JKRhb](https://github.com/JKRhb)      |
 
+Write access to the main branch and to crates.io is exclusively granted to the maintainers listed above.

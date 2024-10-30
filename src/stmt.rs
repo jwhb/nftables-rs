@@ -4,13 +4,14 @@ use serde::{Deserialize, Serialize};
 
 use strum_macros::EnumString;
 
-use crate::types::RejectCode;
+use crate::types::{RejectCode, SynProxyFlag};
 use crate::visitor::single_string_to_option_hashset_logflag;
 
 use crate::expr::Expression;
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[non_exhaustive]
 /// Statements are the building blocks for rules. Each rule consists of at least one.
 ///
 /// See <https://manpages.debian.org/testing/libnftables1/libnftables-json.5.en.html#STATEMENTS>.
@@ -29,17 +30,19 @@ pub enum Statement {
     Goto(JumpTarget),
 
     Match(Match),
-    Counter(Option<Counter>),
-    #[serde(rename = "counter")]
-    /// reference to a named counter
-    CounterRef(String),
+    /// anonymous or named counter.
+    Counter(Counter),
     Mangle(Mangle),
     Quota(Quota),
     #[serde(rename = "quota")]
     /// reference to a named quota object
     QuotaRef(String),
+    // TODO: last
     Limit(Limit),
 
+    /// The Flow statement offloads matching network traffic to flowtables,
+    /// enabling faster forwarding by bypassing standard processing.
+    Flow(Flow),
     FWD(Option<FWD>),
     /// Disable connection tracking for the packet.
     Notrack,
@@ -50,6 +53,7 @@ pub enum Statement {
     Redirect(Option<NAT>),   // redirect is subset of NAT options
     Reject(Option<Reject>),
     Set(Set),
+    // TODO: map
     Log(Option<Log>),
 
     #[serde(rename = "ct helper")]
@@ -59,6 +63,7 @@ pub enum Statement {
     Meter(Meter),
     Queue(Queue),
     #[serde(rename = "vmap")]
+    // TODO: vmap is expr, not stmt!
     VerdictMap(VerdictMap),
 
     #[serde(rename = "ct count")]
@@ -75,6 +80,12 @@ pub enum Statement {
     /// This represents an xt statement from xtables compat interface.
     /// Sadly, at this point, it is not possible to provide any further information about its content.
     XT(Option<serde_json::Value>),
+    /// A netfilter synproxy intercepts new TCP connections and handles the initial 3-way handshake using syncookies instead of conntrack to establish the connection.
+    SynProxy(SynProxy),
+    /// Redirects the packet to a local socket without changing the packet header in any way.
+    TProxy(TProxy),
+    // TODO: reset
+    // TODO: secmark
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
@@ -100,6 +111,7 @@ pub struct JumpTarget {
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 /// This matches the expression on left hand side (typically a packet header or packet meta info) with the expression on right hand side (typically a constant value).
+///
 /// If the statement evaluates to true, the next statement in this rule is considered.
 /// If not, processing continues with the next rule in the same chain.
 pub struct Match {
@@ -112,10 +124,20 @@ pub struct Match {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+/// Anonymous or named Counter.
+pub enum Counter {
+    /// A counter referenced by name.
+    Named(String),
+    /// An anonymous counter.
+    Anonymous(Option<AnonymousCounter>),
+}
+
+#[derive(Debug, Default, Clone, Eq, PartialEq, Serialize, Deserialize)]
 /// This object represents a byte/packet counter.
 /// In input, no properties are required.
 /// If given, they act as initial values for the counter.
-pub struct Counter {
+pub struct AnonymousCounter {
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Packets counted.
     pub packets: Option<usize>,
@@ -175,6 +197,15 @@ pub struct Limit {
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 /// Forward a packet to a different destination.
+pub struct Flow {
+    /// Operator on flow/set.
+    pub op: SetOp,
+    /// The [flow table][crate::schema::FlowTable]'s name.
+    pub flowtable: String,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+/// Forward a packet to a different destination.
 pub struct FWD {
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Interface to forward the packet on.
@@ -187,7 +218,7 @@ pub struct FWD {
     pub addr: Option<Expression>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Protocol family for `FWD`.
 pub enum FWDFamily {
@@ -223,7 +254,7 @@ pub struct NAT {
     pub flags: Option<HashSet<NATFlag>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Protocol family for `NAT`.
 pub enum NATFamily {
@@ -231,7 +262,7 @@ pub enum NATFamily {
     IP6,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Hash)]
 #[serde(rename_all = "lowercase")]
 /// Flags for `NAT`.
 pub enum NATFlag {
@@ -258,7 +289,7 @@ impl Reject {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Types of `Reject`.
 pub enum RejectType {
@@ -280,7 +311,7 @@ pub struct Set {
     pub set: String,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Operators on `Set`.
 pub enum SetOp {
@@ -334,7 +365,7 @@ impl Log {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Levels of `Log`.
 pub enum LogLevel {
@@ -349,7 +380,7 @@ pub enum LogLevel {
     Audit,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Hash, EnumString)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Hash, EnumString)]
 #[serde(rename_all = "lowercase")]
 #[strum(serialize_all = "lowercase")]
 /// Flags of `Log`.
@@ -389,7 +420,7 @@ pub struct Queue {
     pub flags: Option<HashSet<QueueFlag>>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Serialize, Deserialize, Hash)]
 #[serde(rename_all = "lowercase")]
 /// Flags of `Queue`.
 pub enum QueueFlag {
@@ -421,6 +452,33 @@ pub struct CTCount {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+/// Limit the number of connections using conntrack.
+///
+/// Anonymous synproxy was requires **nftables 0.9.2 or newer**.
+pub struct SynProxy {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// maximum segment size (must match your backend server)
+    pub mss: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// window scale (must match your backend server)
+    pub wscale: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The synproxy's [flags][crate::types::SynProxyFlag].
+    pub flags: Option<HashSet<SynProxyFlag>>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+/// Redirects the packet to a local socket without changing the packet header in any way.
+pub struct TProxy {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub family: Option<String>,
+    pub port: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub addr: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 /// Represents an operator for `Match`.
 pub enum Operator {
     #[serde(rename = "&")]

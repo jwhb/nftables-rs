@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// Families in nftables.
 ///
 /// See <https://wiki.nftables.org/wiki-nftables/index.php/Nftables_families>.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NfFamily {
     IP,
@@ -14,7 +14,7 @@ pub enum NfFamily {
     NetDev,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Represents the type of a Chain.
 pub enum NfChainType {
@@ -23,7 +23,7 @@ pub enum NfChainType {
     NAT,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Represents the policy of a Chain.
 pub enum NfChainPolicy {
@@ -31,7 +31,7 @@ pub enum NfChainPolicy {
     Drop,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Represents a netfilter hook.
 ///
@@ -46,7 +46,7 @@ pub enum NfHook {
     Egress,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 /// Represents a conntrack helper protocol.
 pub enum CTHProto {
@@ -60,7 +60,7 @@ pub enum CTHProto {
     Generic,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum RejectCode {
     #[serde(rename = "admin-prohibited")]
     /// Host administratively prohibited (ICMPX, ICMP, ICMPv6)
@@ -89,4 +89,31 @@ pub enum RejectCode {
     #[serde(rename = "addr-unreachable")]
     /// Address unreachable (ICMPv6)
     AddrUnreach,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Hash)]
+#[serde(rename_all = "lowercase")]
+/// Describes a SynProxy's flags.
+pub enum SynProxyFlag {
+    /// Pass client timestamp option to backend.
+    Timestamp,
+    #[serde(rename = "sack-perm")]
+    /// Pass client selective acknowledgement option to backend.
+    SackPerm,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+/// A time unit (used by [limits][crate::schema::Limit]).
+pub enum NfTimeUnit {
+    /// A second.
+    Second,
+    /// A minute (60 seconds).
+    Minute,
+    /// An hour (3600 seconds).
+    Hour,
+    /// A day (86400 seconds).
+    Day,
+    /// A week (604800 seconds).
+    Week,
 }
